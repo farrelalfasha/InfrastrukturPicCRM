@@ -1,0 +1,9 @@
+{
+  "spreadsheetId": "1pL4MwL33CdSEAAk_dKzc7lf_xBqse44jYHSbnpGLceg",
+  "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1pL4MwL33CdSEAAk_dKzc7lf_xBqse44jYHSbnpGLceg/edit?usp=sharing",
+  "sheetName": "Rekap PIC CRM",
+  "credentials": {
+    "client_email": "MASUKKAN_EMAIL_SERVICE_ACCOUNT_DISINI",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMASUKKAN_PRIVATE_KEY_SERVICE_ACCOUNT_DISINI\n-----END PRIVATE KEY-----\n"
+  }
+}

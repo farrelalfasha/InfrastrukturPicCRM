@@ -1,0 +1,15 @@
+{
+  "name": "honda-pic-crm",
+  "version": "1.0.0",
+  "description": "Honda PIC CRM Management App for PT Daya Adicipta Motora",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "googleapis": "^174.0.1",
+    "multer": "^1.4.5-lts.1"
+  }
+}
