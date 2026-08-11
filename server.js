@@ -241,15 +241,60 @@ app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), async (req, r
   });
 });
 
-// 5. API: Get all submissions (Admin dashboard)
-app.get('/api/submissions', authenticate, requireAdmin, (req, res) => {
-  const submissions = db.getAllSubmissions();
-  const sheetsConfig = googleSheets.getConfigPublic();
-  res.json({
-    submissions: submissions,
-    dealersList: db.DEALERS,
-    spreadsheetUrl: sheetsConfig.spreadsheetUrl
+// Fetch every submission straight from Google Sheets (the real source of
+// truth) and group it by dealer code, keeping only the latest row per
+// dealer if there happen to be duplicates (each submit appends a new row).
+async function fetchSubmissionsFromSheets() {
+  const bodyParams = new URLSearchParams();
+  bodyParams.append('action', 'listRecords');
+
+  const response = await fetch(WEB_APP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: bodyParams.toString()
   });
+
+  const result = await response.json();
+  if (!result.ok || !Array.isArray(result.records)) {
+    throw new Error('Respons listRecords dari Google Sheets tidak valid.');
+  }
+
+  // Sort newest first so the first occurrence per dealer code we keep is the latest
+  const sorted = result.records
+    .slice()
+    .sort((a, b) => new Date(b.submittedAt || b.timestamp || 0) - new Date(a.submittedAt || a.timestamp || 0));
+
+  const byCode = {};
+  for (const record of sorted) {
+    const code = record.code || record.kodeDealer;
+    if (code && !byCode[code]) {
+      byCode[code] = record;
+    }
+  }
+  return byCode;
+}
+
+// 5. API: Get all submissions (Admin dashboard)
+app.get('/api/submissions', authenticate, requireAdmin, async (req, res) => {
+  const sheetsConfig = googleSheets.getConfigPublic();
+
+  try {
+    const submissions = await fetchSubmissionsFromSheets();
+    return res.json({
+      submissions: submissions,
+      dealersList: db.DEALERS,
+      spreadsheetUrl: sheetsConfig.spreadsheetUrl
+    });
+  } catch (err) {
+    console.error('[Dashboard] Failed to fetch from Google Sheets, falling back to local cache:', err.message);
+    // Fallback only used if Google Sheets is unreachable (e.g. local dev without internet)
+    const submissions = db.getAllSubmissions();
+    return res.json({
+      submissions: submissions,
+      dealersList: db.DEALERS,
+      spreadsheetUrl: sheetsConfig.spreadsheetUrl
+    });
+  }
 });
 
 // Start the server
