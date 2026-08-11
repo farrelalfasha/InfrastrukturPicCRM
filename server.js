@@ -16,29 +16,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Setup uploads folder
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
 // Serve public static folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configure Multer storage for PIC CRM photos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'pic-' + uniqueSuffix + ext);
-  }
-});
-
+// ============================================================
+// PENTING: Vercel (dan platform serverless lain) TIDAK mengizinkan
+// menulis file ke disk secara permanen — hanya folder /tmp yang bisa
+// ditulis, dan isinya hilang begitu function selesai dieksekusi.
+// Karena itu foto PIC CRM diproses langsung di MEMORI (bukan ditulis
+// ke folder public/uploads), lalu dikonversi ke base64 untuk dikirim
+// ke Google Sheets Web App. Ini membuat aplikasi tetap berfungsi baik
+// di localhost maupun di Vercel tanpa perlu folder uploads sama sekali.
+// ============================================================
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   fileFilter: function (req, file, cb) {
     const allowedTypes = /jpeg|jpg|png|webp|gif/;
     const ext = path.extname(file.originalname).toLowerCase();
@@ -145,35 +136,17 @@ app.get('/api/dealers', (req, res) => {
 
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyTIsyMk0-o7v60vi48tY5V9JrdFEj3ZO6G2LoeKLKb-eFe5vzy2FruB8LKskywwQit5A/exec';
 
-// Helper to sync local database submission to Google Sheets Web App asynchronously
+// Sync a submission to the Google Sheets Web App.
+// Returns true/false so the caller can know whether it actually succeeded —
+// this is now the REAL source of truth for whether a submission "worked",
+// since local file writes are not reliable on serverless hosts like Vercel.
 async function syncToWebAppAsync(dealerCode, record) {
-  if (!record) return;
-
-  const payload = { ...record };
-
-  // Convert photo to base64 Data URL for Google Sheets Web App upload
-  if (payload.fotoPicCrm && payload.fotoPicCrm.startsWith('/uploads/')) {
-    const filePath = path.join(__dirname, 'public', payload.fotoPicCrm);
-    if (fs.existsSync(filePath)) {
-      try {
-        const fileBuffer = fs.readFileSync(filePath);
-        const ext = path.extname(filePath).toLowerCase();
-        let mimeType = 'image/png';
-        if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
-        else if (ext === '.webp') mimeType = 'image/webp';
-        else if (ext === '.gif') mimeType = 'image/gif';
-
-        payload.fotoPicCrm = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-      } catch (err) {
-        console.error(`[Google Web App Sync] Failed to read photo file for base64 conversion:`, err);
-      }
-    }
-  }
+  if (!record) return false;
 
   try {
     const bodyParams = new URLSearchParams();
     bodyParams.append('action', 'saveRecord');
-    bodyParams.append('payload', JSON.stringify(payload));
+    bodyParams.append('payload', JSON.stringify(record));
 
     const response = await fetch(WEB_APP_URL, {
       method: 'POST',
@@ -184,11 +157,14 @@ async function syncToWebAppAsync(dealerCode, record) {
     const result = await response.json();
     if (result.ok) {
       console.log(`[Google Web App Sync] Successfully synced record for dealer ${dealerCode}`);
+      return true;
     } else {
       console.error(`[Google Web App Sync] Failed to sync record for dealer ${dealerCode}:`, result);
+      return false;
     }
   } catch (err) {
     console.error(`[Google Web App Sync] Network error syncing dealer ${dealerCode}:`, err.message);
+    return false;
   }
 }
 
@@ -208,7 +184,7 @@ app.get('/api/dealer/status', authenticate, (req, res) => {
 });
 
 // 4. API: Submit form data (multipart form upload)
-app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), (req, res) => {
+app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), async (req, res) => {
   if (req.user.role === 'admin') {
     return res.status(400).json({ error: 'Admin tidak dapat mengisi form dealer.' });
   }
@@ -219,34 +195,50 @@ app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), (req, res) =>
   // Form fields parsed from req.body
   const formData = { ...req.body };
 
-  // Set file path if uploaded, otherwise retain existing
+  // Convert uploaded photo (in memory, never touches disk) to base64 data URL
   if (req.file) {
-    formData.fotoPicCrm = '/uploads/' + req.file.filename;
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    formData.fotoPicCrm = `data:${mimeType};base64,${req.file.buffer.toString('base64')}`;
   } else if (existingSubmission.fotoPicCrm) {
     formData.fotoPicCrm = existingSubmission.fotoPicCrm;
   } else {
-    formData.fotoPicCrm = ''; // Default empty if none
+    formData.fotoPicCrm = '';
   }
 
   // Ensure terms/checklist is marked
   formData.consentAccepted = formData.consentAccepted === 'true' || formData.consentAccepted === true;
 
-  // Save submission to local database (cache/primary source of truth for homepage)
-  const success = db.saveSubmission(dealerCode, formData);
+  const recordToSync = {
+    ...existingSubmission,
+    ...formData,
+    code: dealerCode,
+    timestamp: new Date().toISOString()
+  };
 
-  if (success) {
-    // Sync to Google Sheets Web App asynchronously in the background
-    syncToWebAppAsync(dealerCode, db.getSubmission(dealerCode))
-      .catch(err => console.error('Error in background sync to Google Web App:', err));
+  // Best-effort local cache save. This WILL fail on read-only filesystems
+  // like Vercel — that's expected and no longer treated as a fatal error.
+  let localSaveOk = false;
+  try {
+    localSaveOk = db.saveSubmission(dealerCode, formData);
+  } catch (err) {
+    console.error('[Local Save] Failed (expected on Vercel/serverless):', err.message);
+  }
 
-    res.json({
+  // Google Sheets is the real source of truth now — we WAIT for the result
+  // instead of firing it in the background, so we can report true success/failure.
+  const sheetsOk = await syncToWebAppAsync(dealerCode, recordToSync);
+
+  if (localSaveOk || sheetsOk) {
+    return res.json({
       success: true,
       message: 'Form data berhasil dikirim.',
-      data: db.getSubmission(dealerCode)
+      data: recordToSync
     });
-  } else {
-    res.status(500).json({ error: 'Gagal menyimpan data form secara lokal.' });
   }
+
+  return res.status(500).json({
+    error: 'Gagal mengirim data form. Cek koneksi internet dan coba lagi dalam beberapa saat.'
+  });
 });
 
 // 5. API: Get all submissions (Admin dashboard)
