@@ -354,6 +354,7 @@ function prefillFormData(data) {
   document.getElementById('namaDealer').value = data.namaDealer || (dealersList[currentUser.code]?.name || '');
 
   // Section 1
+  document.getElementById('noHpDealer').value = data.noHpDealer || '';
   document.getElementById('namaKacab').value = data.namaKacab || '';
   document.getElementById('hondaIdKacab').value = data.hondaIdKacab || '';
   document.getElementById('noHpKacab').value = data.noHpKacab || '';
@@ -767,6 +768,10 @@ function showDealerDetail(code) {
             <i class="fa-solid fa-users-gear"></i> Manajemen Dealer
           </div>
           <div class="detail-rows">
+            <div class="detail-item" style="grid-column: 1 / -1; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; margin-bottom: 0.4rem;">
+              <div class="detail-label">No HP Dealer</div>
+              <div class="detail-val" style="font-weight: 600; font-size: 0.95rem;">${submission.noHpDealer || '-'}</div>
+            </div>
             <div class="detail-item">
               <div class="detail-label">Kepala Cabang</div>
               <div class="detail-val">${submission.namaKacab || '-'}</div>
@@ -970,6 +975,7 @@ function exportToExcel() {
         'Kode Dealer': code,
         'Nama Dealer': dealerInfo.name,
         // Section 1
+        'No HP Dealer': submission.noHpDealer || '',
         'Nama Kepala Cabang': submission.namaKacab || '',
         'Honda ID Kacab': submission.hondaIdKacab || '',
         'No HP Kacab': submission.noHpKacab || '',

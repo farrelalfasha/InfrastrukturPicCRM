@@ -1090,3 +1090,29 @@ footer {
   color: var(--text-muted);
   box-shadow: 0 -1px 3px rgba(0,0,0,0.02);
 }
+
+/* Leader Card side-by-side components */
+.leader-card {
+  background: #F8FAFC; /* Soft slate/blue background */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.leader-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #CBD5E0;
+}
+
+.leader-card-title {
+  margin-top: 0 !important;
+  margin-bottom: 1.2rem;
+  font-size: 1.05rem;
+  color: var(--primary); /* Honda Crimson Red */
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 0.4rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+}

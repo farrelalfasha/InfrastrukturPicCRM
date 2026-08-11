@@ -81,6 +81,7 @@ async function syncSubmission(dealerCode, data, originUrl) {
       'Waktu Pengisian (Timestamp)',
       'Kode Dealer',
       'Nama Dealer',
+      'No HP Dealer',
       'Nama Kepala Cabang',
       'Honda ID Kepala Cabang',
       'No HP Kepala Cabang',
@@ -131,6 +132,7 @@ async function syncSubmission(dealerCode, data, originUrl) {
       new Date(data.timestamp || new Date()).toLocaleString('id-ID'),
       dealerCode,
       data.namaDealer || '',
+      data.noHpDealer || '',
       data.namaKacab || '',
       data.hondaIdKacab || '',
       data.noHpKacab || '',
@@ -207,7 +209,7 @@ async function syncSubmission(dealerCode, data, originUrl) {
 
     if (rowIndex !== -1) {
       // Row exists: overwrite it!
-      const range = `${sheetName}!A${rowIndex}:AT${rowIndex}`;
+      const range = `${sheetName}!A${rowIndex}:AU${rowIndex}`;
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range,
