@@ -40,7 +40,11 @@ const upload = multer({
       cb(new Error('Hanya file gambar yang diperbolehkan!'));
     }
   },
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  // Foto sudah dikompres di browser sebelum diupload, jadi seharusnya jauh
+  // di bawah ini. Limit ini jaring pengaman kedua, dan sekaligus menjaga
+  // total ukuran request tetap di bawah batas keras 4.5MB dari Vercel
+  // (2 foto + field lain harus tetap muat).
+  limits: { fileSize: 3 * 1024 * 1024 } // 3MB per file
 });
 
 // Middleware to verify authorization token

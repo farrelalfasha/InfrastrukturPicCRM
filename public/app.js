@@ -305,7 +305,49 @@ function toggleContainer(containerId, show) {
 }
 
 // Handle Photo selection/drag
-function handlePhotoSelect(file) {
+// Compress an image in the browser before upload — resizes to a max
+// dimension and re-encodes as JPEG, so file size stays well under Vercel's
+// hard 4.5MB request body limit even when 2 photos are sent at once.
+function compressImage(file, maxDimension = 1280, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDimension) {
+          height = Math.round(height * (maxDimension / width));
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = Math.round(width * (maxDimension / height));
+          height = maxDimension;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Gagal mengompres gambar.'));
+            return;
+          }
+          const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+            type: 'image/jpeg'
+          });
+          resolve(compressedFile);
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoSelect(file) {
   if (!file) return;
 
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -314,23 +356,32 @@ function handlePhotoSelect(file) {
     return;
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('Ukuran file maksimal 5MB.', 'error');
+  if (file.size > 15 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 15MB (akan otomatis dikompres).', 'error');
     return;
   }
 
-  selectedFile = file;
+  showToast('Mengompres foto...', 'info');
+  let compressed;
+  try {
+    compressed = await compressImage(file);
+  } catch (err) {
+    showToast('Gagal memproses foto, coba file lain.', 'error');
+    return;
+  }
+
+  selectedFile = compressed;
 
   const reader = new FileReader();
   reader.onload = (e) => {
     document.getElementById('previewImg').src = e.target.result;
     document.getElementById('photoName').textContent = file.name;
-    document.getElementById('photoSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+    document.getElementById('photoSize').textContent = (compressed.size / 1024 / 1024).toFixed(2) + ' MB (dikompres)';
 
     document.getElementById('photoPreviewBox').classList.remove('hidden');
     document.getElementById('photoDropzone').classList.add('hidden');
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(compressed);
 }
 
 // Remove Selected Photo from Preview
@@ -341,7 +392,7 @@ function removeSelectedPhoto() {
   document.getElementById('photoDropzone').classList.remove('hidden');
 }
 
-function handleKtpSelect(file) {
+async function handleKtpSelect(file) {
   if (!file) return;
 
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -350,23 +401,32 @@ function handleKtpSelect(file) {
     return;
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('Ukuran file maksimal 5MB.', 'error');
+  if (file.size > 15 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 15MB (akan otomatis dikompres).', 'error');
     return;
   }
 
-  selectedKtpFile = file;
+  showToast('Mengompres foto KTP...', 'info');
+  let compressed;
+  try {
+    compressed = await compressImage(file, 1600, 0.8); // KTP: sedikit lebih tinggi resolusinya biar tetap kebaca
+  } catch (err) {
+    showToast('Gagal memproses foto, coba file lain.', 'error');
+    return;
+  }
+
+  selectedKtpFile = compressed;
 
   const reader = new FileReader();
   reader.onload = (e) => {
     document.getElementById('ktpPreviewImg').src = e.target.result;
     document.getElementById('ktpPhotoName').textContent = file.name;
-    document.getElementById('ktpPhotoSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+    document.getElementById('ktpPhotoSize').textContent = (compressed.size / 1024 / 1024).toFixed(2) + ' MB (dikompres)';
 
     document.getElementById('ktpPreviewBox').classList.remove('hidden');
     document.getElementById('ktpDropzone').classList.add('hidden');
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(compressed);
 }
 
 // Remove Selected KTP Photo from Preview
