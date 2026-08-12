@@ -173,19 +173,39 @@ async function syncToWebAppAsync(dealerCode, record) {
 }
 
 // 3. API: Get dealer status & form data
-app.get('/api/dealer/status', authenticate, (req, res) => {
+// PENTING: baca dari Google Sheets (sumber kebenaran sebenarnya), BUKAN dari
+// db lokal — db.saveSubmission() gagal diam-diam di Vercel karena filesystem
+// read-only, jadi kalau endpoint ini baca dari db lokal, data yang sudah
+// tersimpan di Sheets tidak akan pernah terlihat lagi setelah login ulang.
+app.get('/api/dealer/status', authenticate, async (req, res) => {
   if (req.user.role === 'admin') {
     return res.status(400).json({ error: 'Endpoint ini hanya untuk dealer.' });
   }
 
-  const submission = db.getSubmission(req.user.code);
-  res.json({
-    code: req.user.code,
-    name: req.user.name,
-    submitted: !!submission,
-    data: submission
-  });
+  try {
+    const allSubmissions = await fetchSubmissionsFromSheets();
+    const submission = allSubmissions[req.user.code] || null;
+
+    return res.json({
+      code: req.user.code,
+      name: req.user.name,
+      submitted: !!submission,
+      data: submission
+    });
+  } catch (err) {
+    console.error('[Dealer Status] Gagal ambil data dari Google Sheets, fallback ke cache lokal:', err.message);
+    // Fallback hanya dipakai kalau Google Sheets benar-benar tidak bisa diakses
+    // (mis. dev lokal tanpa internet) — bukan alur normal di production.
+    const submission = db.getSubmission(req.user.code);
+    return res.json({
+      code: req.user.code,
+      name: req.user.name,
+      submitted: !!submission,
+      data: submission
+    });
+  }
 });
+
 
 // 4. API: Submit form data (multipart form upload)
 app.post('/api/submit', authenticate, upload.fields([

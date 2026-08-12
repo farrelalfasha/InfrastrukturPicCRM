@@ -580,7 +580,26 @@
     </div>
   </main>
 
-  <!-- 4. Detail Modal Popup (Admin view details) -->
+  <!-- 4. Kirim Form Berhasil -->
+  <div id="dealerCompleteView" class="hidden">
+    <div class="glass-panel" style="max-width: 480px; margin: 4rem auto; text-align: center; padding: 3rem 2rem;">
+      <i class="fa-solid fa-circle-check" style="font-size: 3.5rem; color: #75b798; margin-bottom: 1.5rem;"></i>
+      <h2 style="margin-bottom: 0.5rem;">Pengisian Form Selesai</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+        Terima kasih! Data PIC CRM untuk dealer Anda sudah tersimpan.
+      </p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center;">
+        <button id="btnEditSubmission" class="btn btn-secondary">
+          <i class="fa-solid fa-pen"></i> Edit Pengisian
+        </button>
+        <button id="btnLogoutFromComplete" class="btn btn-primary">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Detail Modal Popup (Admin view details) -->
   <div class="modal-overlay" id="detailModal">
     <div class="modal-container glass-panel">
       <div class="modal-header">

@@ -177,11 +177,18 @@ function setupEventListeners() {
       closeModal();
     }
   });
+  document.getElementById('btnEditSubmission').addEventListener('click', () => {
+    currentStep = 1;
+    updateWizardUI();
+    showView('dealerFormView');
+  });
+
+  document.getElementById('btnLogoutFromComplete').addEventListener('click', handleLogout);
 }
 
 // Show specific layout screen
 function showView(viewId) {
-  const views = ['loginView', 'dealerFormView', 'adminDashboardView'];
+  const views = ['loginView', 'dealerFormView', 'adminDashboardView', 'dealerCompleteView'];
   views.forEach(v => {
     const el = document.getElementById(v);
     if (v === viewId) {
@@ -409,7 +416,7 @@ async function handleKtpSelect(file) {
   showToast('Mengompres foto KTP...', 'info');
   let compressed;
   try {
-    compressed = await compressImage(file, 1600, 0.8); // KTP: sedikit lebih tinggi resolusinya biar tetap kebaca
+    compressed = await compressImage(file, 1280, 0.72); // KTP: sedikit lebih tinggi resolusinya biar tetap kebaca
   } catch (err) {
     showToast('Gagal memproses foto, coba file lain.', 'error');
     return;
@@ -466,10 +473,13 @@ async function loadDealerPortal() {
 
     if (data.submitted && data.data) {
       prefillFormData(data.data);
-      showToast('Memuat data pengisian Anda sebelumnya.', 'success');
+      showView('dealerCompleteView'); // ← sudah pernah isi: langsung ke halaman "selesai"
+    } else {
+      showView('dealerFormView'); // ← belum pernah isi: langsung ke wizard
     }
   } catch (err) {
     showToast('Gagal memuat status pengisian dealer.', 'error');
+    showView('dealerFormView');
   }
 }
 
@@ -715,12 +725,22 @@ async function handleFormSubmit(e) {
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Gagal menyimpan form.');
+      let message = 'Gagal menyimpan form.';
+      if (res.status === 413) {
+        message = 'Ukuran foto terlalu besar untuk dikirim. Coba unggah ulang foto dengan ukuran lebih kecil.';
+      } else {
+        try {
+          const err = await res.json();
+          message = err.error || message;
+        } catch (_) {
+          // Response bukan JSON (mis. halaman error dari Vercel) — pakai pesan default di atas
+        }
+      }
+      throw new Error(message);
     }
 
     showToast('Data form PIC CRM berhasil disimpan!', 'success');
-    loadDealerPortal();
+    showView('dealerCompleteView');
   } catch (error) {
     showToast(error.message, 'error');
   }
