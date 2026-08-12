@@ -184,7 +184,10 @@ app.get('/api/dealer/status', authenticate, (req, res) => {
 });
 
 // 4. API: Submit form data (multipart form upload)
-app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), async (req, res) => {
+app.post('/api/submit', authenticate, upload.fields([
+  { name: 'fotoPicCrm', maxCount: 1 },
+  { name: 'fotoKtpPic', maxCount: 1 }
+]), async (req, res) => {
   if (req.user.role === 'admin') {
     return res.status(400).json({ error: 'Admin tidak dapat mengisi form dealer.' });
   }
@@ -195,14 +198,26 @@ app.post('/api/submit', authenticate, upload.single('fotoPicCrm'), async (req, r
   // Form fields parsed from req.body
   const formData = { ...req.body };
 
-  // Convert uploaded photo (in memory, never touches disk) to base64 data URL
-  if (req.file) {
-    const mimeType = req.file.mimetype || 'image/jpeg';
-    formData.fotoPicCrm = `data:${mimeType};base64,${req.file.buffer.toString('base64')}`;
+  // Convert uploaded photos (in memory, never touches disk) to base64 data URLs
+  const fotoPicFile = req.files && req.files.fotoPicCrm && req.files.fotoPicCrm[0];
+  const fotoKtpFile = req.files && req.files.fotoKtpPic && req.files.fotoKtpPic[0];
+
+  if (fotoPicFile) {
+    const mimeType = fotoPicFile.mimetype || 'image/jpeg';
+    formData.fotoPicCrm = `data:${mimeType};base64,${fotoPicFile.buffer.toString('base64')}`;
   } else if (existingSubmission.fotoPicCrm) {
     formData.fotoPicCrm = existingSubmission.fotoPicCrm;
   } else {
     formData.fotoPicCrm = '';
+  }
+
+  if (fotoKtpFile) {
+    const mimeType = fotoKtpFile.mimetype || 'image/jpeg';
+    formData.fotoKtpPic = `data:${mimeType};base64,${fotoKtpFile.buffer.toString('base64')}`;
+  } else if (existingSubmission.fotoKtpPic) {
+    formData.fotoKtpPic = existingSubmission.fotoKtpPic;
+  } else {
+    formData.fotoKtpPic = '';
   }
 
   // Ensure terms/checklist is marked

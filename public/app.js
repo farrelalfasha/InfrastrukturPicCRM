@@ -5,6 +5,7 @@ let dealerCodes = [];
 let submissionsList = {};
 let currentStep = 1;
 let selectedFile = null;
+let selectedKtpFile = null;
 
 // API URL helpers
 const API_BASE = '/api';
@@ -18,13 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Setup Initial State & Check Sessions
 async function initApp() {
   await fetchDealers();
-  
+
   const savedUser = localStorage.getItem('honda_crm_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
       showUserProfile();
-      
+
       if (currentUser.role === 'admin') {
         showView('adminDashboardView');
         loadAdminDashboard();
@@ -48,14 +49,14 @@ async function fetchDealers() {
     const data = await res.json();
     dealersList = data.dealers;
     dealerCodes = data.codes;
-    
+
     // Populate step 1 dropdowns
     const kodeSelect = document.getElementById('kodeDealer');
     const namaSelect = document.getElementById('namaDealer');
-    
+
     kodeSelect.innerHTML = '<option value="" disabled selected>Pilih Kode Dealer</option>';
     namaSelect.innerHTML = '<option value="" disabled selected>Pilih Nama Dealer</option>';
-    
+
     Object.keys(dealersList).forEach(code => {
       const optionKode = document.createElement('option');
       optionKode.value = code;
@@ -76,10 +77,10 @@ async function fetchDealers() {
 function setupEventListeners() {
   // Login Form
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
-  
+
   // Logout Button
   document.getElementById('btnLogoutBtn').addEventListener('click', handleLogout);
-  
+
   // Wizard Navigation
   document.getElementById('btnNext').addEventListener('click', nextStep);
   document.getElementById('btnPrev').addEventListener('click', prevStep);
@@ -116,6 +117,35 @@ function setupEventListeners() {
   });
 
   removePhotoBtn.addEventListener('click', removeSelectedPhoto);
+
+  // File Upload Drag & Drop — Foto KTP PIC CRM
+  const ktpDropzone = document.getElementById('ktpDropzone');
+  const ktpFileInput = document.getElementById('fotoKtpPic');
+  const removeKtpBtn = document.getElementById('btnRemoveKtp');
+
+  ktpFileInput.addEventListener('change', (e) => {
+    handleKtpSelect(e.target.files[0]);
+  });
+
+  ktpDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    ktpDropzone.classList.add('drag-over');
+  });
+
+  ktpDropzone.addEventListener('dragleave', () => {
+    ktpDropzone.classList.remove('drag-over');
+  });
+
+  ktpDropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    ktpDropzone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      ktpFileInput.files = e.dataTransfer.files;
+      handleKtpSelect(e.dataTransfer.files[0]);
+    }
+  });
+
+  removeKtpBtn.addEventListener('click', removeSelectedKtp);
 
   // Admin H1 & H2 conditional inputs display
   document.getElementById('punyaAdminH2').addEventListener('change', (e) => {
@@ -219,7 +249,7 @@ async function handleLogin(e) {
       showView('dealerFormView');
       loadDealerPortal();
     }
-    
+
     loginCodeInput.value = '';
     loginPasswordInput.value = '';
   } catch (error) {
@@ -257,7 +287,7 @@ function calculatePicAge() {
 function toggleContainer(containerId, show) {
   const el = document.getElementById(containerId);
   const inputs = el.querySelectorAll('input, select');
-  
+
   if (show) {
     el.classList.remove('hidden');
     inputs.forEach(input => {
@@ -296,7 +326,7 @@ function handlePhotoSelect(file) {
     document.getElementById('previewImg').src = e.target.result;
     document.getElementById('photoName').textContent = file.name;
     document.getElementById('photoSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-    
+
     document.getElementById('photoPreviewBox').classList.remove('hidden');
     document.getElementById('photoDropzone').classList.add('hidden');
   };
@@ -309,6 +339,42 @@ function removeSelectedPhoto() {
   document.getElementById('fotoPicCrm').value = '';
   document.getElementById('photoPreviewBox').classList.add('hidden');
   document.getElementById('photoDropzone').classList.remove('hidden');
+}
+
+function handleKtpSelect(file) {
+  if (!file) return;
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowedTypes.includes(file.type)) {
+    showToast('Tipe file tidak didukung! Gunakan format JPG, PNG, atau WEBP.', 'error');
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 5MB.', 'error');
+    return;
+  }
+
+  selectedKtpFile = file;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('ktpPreviewImg').src = e.target.result;
+    document.getElementById('ktpPhotoName').textContent = file.name;
+    document.getElementById('ktpPhotoSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+
+    document.getElementById('ktpPreviewBox').classList.remove('hidden');
+    document.getElementById('ktpDropzone').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Remove Selected KTP Photo from Preview
+function removeSelectedKtp() {
+  selectedKtpFile = null;
+  document.getElementById('fotoKtpPic').value = '';
+  document.getElementById('ktpPreviewBox').classList.add('hidden');
+  document.getElementById('ktpDropzone').classList.remove('hidden');
 }
 
 // Load Dealer submission portal
@@ -327,7 +393,7 @@ async function loadDealerPortal() {
   // Pre-select the login dealer code and dealer name
   const kodeSelect = document.getElementById('kodeDealer');
   const namaSelect = document.getElementById('namaDealer');
-  
+
   kodeSelect.value = currentUser.code;
   namaSelect.value = dealersList[currentUser.code]?.name || '';
 
@@ -359,7 +425,7 @@ function prefillFormData(data) {
   document.getElementById('hondaIdKacab').value = data.hondaIdKacab || '';
   document.getElementById('noHpKacab').value = data.noHpKacab || '';
   document.getElementById('emailKacab').value = data.emailKacab || '';
-  
+
   document.getElementById('namaKabeng').value = data.namaKabeng || '';
   document.getElementById('hondaIdKabeng').value = data.hondaIdKabeng || '';
   document.getElementById('noHpKabeng').value = data.noHpKabeng || '';
@@ -382,6 +448,14 @@ function prefillFormData(data) {
     document.getElementById('photoSize').textContent = 'Disimpan di server';
     document.getElementById('photoPreviewBox').classList.remove('hidden');
     document.getElementById('photoDropzone').classList.add('hidden');
+  }
+
+  if (data.fotoKtpPic) {
+    document.getElementById('ktpPreviewImg').src = data.fotoKtpPic;
+    document.getElementById('ktpPhotoName').textContent = 'Foto KTP Terunggah';
+    document.getElementById('ktpPhotoSize').textContent = 'Disimpan di server';
+    document.getElementById('ktpPreviewBox').classList.remove('hidden');
+    document.getElementById('ktpDropzone').classList.add('hidden');
   }
 
   // Section 3: Admin CRM H2
@@ -520,12 +594,12 @@ function validateCurrentStep() {
   if (currentStep === 2) {
     const photoUploader = document.getElementById('photoDropzone');
     const photoUploaded = selectedFile !== null || document.getElementById('photoPreviewBox').classList.contains('hidden') === false;
-    
+
     if (!photoUploaded) {
       isValid = false;
       photoUploader.style.borderColor = '#dc3545';
       showToast('Harap unggah foto PIC CRM Anda terlebih dahulu.', 'error');
-      
+
       fileInput = document.getElementById('fotoPicCrm');
       fileInput.addEventListener('change', () => {
         photoUploader.style.borderColor = '';
@@ -564,11 +638,14 @@ async function handleFormSubmit(e) {
   if (selectedFile) {
     formData.set('fotoPicCrm', selectedFile);
   }
+  if (selectedKtpFile) {
+    formData.set('fotoKtpPic', selectedKtpFile);
+  }
 
   // Send request to server
   try {
     showToast('Mengirim data...', 'info');
-    
+
     const res = await fetch(`${API_BASE}/submit`, {
       method: 'POST',
       headers: {
@@ -603,7 +680,7 @@ async function loadAdminDashboard() {
     const res = await fetch(`${API_BASE}/submissions`, {
       headers: { 'Authorization': `Bearer ${currentUser.token}` }
     });
-    
+
     if (!res.ok) throw new Error('Gagal mengakses data dashboard.');
 
     const data = await res.json();
@@ -671,7 +748,7 @@ function renderDealersGrid() {
       const matchCode = code.toLowerCase().includes(searchQuery);
       const matchName = dealerInfo.name.toLowerCase().includes(searchQuery);
       const matchPic = isFilled && submission.namaPicCrm ? submission.namaPicCrm.toLowerCase().includes(searchQuery) : false;
-      
+
       if (!matchCode && !matchName && !matchPic) return;
     }
 
@@ -721,7 +798,7 @@ function filterDealersGrid() {
 function showDealerDetail(code) {
   const dealerInfo = dealersList[code] || { name: `Dealer ${code}`, code: code };
   const submission = submissionsList[code];
-  
+
   const modal = document.getElementById('detailModal');
   const modalTitle = document.getElementById('modalTitle');
   const modalBody = document.getElementById('modalBody');
@@ -744,7 +821,14 @@ function showDealerDetail(code) {
     modalBody.innerHTML = `
       <!-- PIC Summary Panel -->
       <div class="profile-summary-bar">
-        <img src="${photoUrl}" alt="${submission.namaPicCrm}" class="profile-summary-img">
+        <div style="position: relative;">
+          <img src="${photoUrl}" alt="${submission.namaPicCrm}" class="profile-summary-img">
+          ${submission.fotoPicCrm ? `
+          <a href="${toDriveDownloadUrl(submission.fotoPicCrm)}" download
+            style="display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.4rem; font-size: 0.78rem; color: var(--primary); text-decoration: none;">
+            <i class="fa-solid fa-download"></i> Unduh Foto
+          </a>` : ''}
+        </div>
         <div class="profile-summary-info">
           <div class="profile-summary-title">${submission.namaPicCrm}</div>
           <div class="profile-summary-sub">
@@ -815,6 +899,22 @@ function showDealerDetail(code) {
               <div class="detail-val">${formatDate(submission.tanggalLahirPic)}</div>
             </div>
           </div>
+          ${submission.fotoKtpPic ? `
+          <div class="detail-rows" style="margin-top: 1rem;">
+            <div class="detail-item" style="width: 100%;">
+              <div class="detail-label"><i class="fa-solid fa-id-card"></i> Foto KTP (Data Sensitif — batasi akses)</div>
+              <a href="${submission.fotoKtpPic}" target="_blank" rel="noopener">
+                <img src="${submission.fotoKtpPic}" alt="Foto KTP PIC CRM"
+                  style="max-width: 220px; border-radius: 8px; margin-top: 0.5rem; border: 1px solid rgba(255,255,255,0.15);">
+              </a>
+              <div>
+                <a href="${toDriveDownloadUrl(submission.fotoKtpPic)}" download
+                  style="display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.4rem; font-size: 0.78rem; color: var(--primary); text-decoration: none;">
+                  <i class="fa-solid fa-download"></i> Unduh Foto KTP
+                </a>
+              </div>
+            </div>
+          </div>` : ''}
         </div>
 
         <!-- Panel 3: Admin CRM H1 / H2 -->
@@ -940,12 +1040,24 @@ function closeModal() {
   modal.classList.remove('active');
 }
 
+// Convert a Google Drive "view" URL (used for <img> preview) into a direct
+// download URL. Works for both /uc?export=view links and full drive.google.com
+// links; falls back to the original URL for anything else (e.g. old local
+// /uploads/... paths or base64 data URLs from before the Drive migration).
+function toDriveDownloadUrl(url) {
+  if (!url) return '';
+  if (url.includes('drive.google.com')) {
+    return url.replace('export=view', 'export=download');
+  }
+  return url;
+}
+
 // Date Formatter helper
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
-  
+
   return date.toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
@@ -1052,7 +1164,7 @@ function exportToExcel() {
     // Generate worksheet & workbook
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
     const workbook = XLSX.utils.book_new();
-    
+
     // Set auto widths for columns
     const max_widths = [];
     excelRows.forEach(row => {
@@ -1070,7 +1182,7 @@ function exportToExcel() {
     // Write file
     const timestampStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(workbook, `Rekap_PIC_CRM_Honda_${timestampStr}.xlsx`);
-    
+
     showToast('Ekspor Excel berhasil diunduh.', 'success');
   } catch (error) {
     showToast('Gagal melakukan ekspor Excel: ' + error.message, 'error');
@@ -1082,11 +1194,11 @@ function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  
-  const icon = type === 'success' 
-    ? '<i class="fa-solid fa-circle-check" style="color: #75b798;"></i>' 
-    : type === 'error' 
-      ? '<i class="fa-solid fa-circle-exclamation" style="color: #ea868f;"></i>' 
+
+  const icon = type === 'success'
+    ? '<i class="fa-solid fa-circle-check" style="color: #75b798;"></i>'
+    : type === 'error'
+      ? '<i class="fa-solid fa-circle-exclamation" style="color: #ea868f;"></i>'
       : '<i class="fa-solid fa-circle-info" style="color: #0d6efd;"></i>';
 
   toast.innerHTML = `${icon} <span>${message}</span>`;

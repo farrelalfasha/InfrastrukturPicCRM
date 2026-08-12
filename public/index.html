@@ -252,6 +252,27 @@
                 </button>
               </div>
             </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+              <label>Foto KTP PIC CRM</label>
+              <div class="photo-uploader" id="ktpDropzone">
+                <input type="file" id="fotoKtpPic" name="fotoKtpPic" accept="image/*">
+                <i class="fa-solid fa-id-card uploader-icon"></i>
+                <div class="uploader-text">Tarik foto KTP ke sini atau klik untuk mencari file</div>
+                <div class="uploader-hint">Mendukung format PNG, JPG, atau WEBP (Maksimal 5MB)</div>
+              </div>
+              <div class="photo-preview-container hidden" id="ktpPreviewBox">
+                <img src="" alt="Preview KTP" class="photo-preview" id="ktpPreviewImg">
+                <div class="photo-preview-details">
+                  <div class="photo-name" id="ktpPhotoName">filename.jpg</div>
+                  <div class="photo-size" id="ktpPhotoSize">0 KB</div>
+                </div>
+                <button type="button" class="btn btn-outline" id="btnRemoveKtp"
+                  style="padding: 0.4rem 0.8rem; font-size: 0.8rem; color: var(--primary);">
+                  Hapus
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- SECTION 3: Admin CRM H1 & H2 -->
