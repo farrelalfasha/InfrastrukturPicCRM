@@ -660,6 +660,63 @@ function validateCurrentStep() {
     }
   });
 
+  // Validasi format email — dulu ditangani otomatis oleh browser lewat
+  // type="email", tapi sejak form pakai `novalidate`, format email perlu
+  // dicek manual di sini supaya errornya tetap ketahuan & muncul jelas.
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  let invalidFieldLabel = null;
+  let invalidFieldMessage = null;
+
+  currentContainer.querySelectorAll('input[type="email"]').forEach(input => {
+    if (input.disabled) return;
+    const value = input.value.trim();
+    if (!value) return; // kosong sudah ditangani validasi required di atas
+
+    if (!emailPattern.test(value)) {
+      isValid = false;
+      input.style.borderColor = '#dc3545';
+      input.addEventListener('input', () => {
+        input.style.borderColor = '';
+      }, { once: true });
+
+      if (!invalidFieldLabel) {
+        const label = document.querySelector(`label[for="${input.id}"]`);
+        invalidFieldLabel = label ? label.textContent.trim() : input.name;
+        invalidFieldMessage = `Format "${invalidFieldLabel}" tidak valid. Harus mengandung "@" dan domain, contoh: nama@gmail.com.`;
+      }
+    }
+  });
+
+  // Validasi Honda ID — wajib 6 digit angka, atau "-" (kalau memang tidak
+  // ada/tidak berlaku). Berlaku untuk semua field yang id-nya diawali "hondaId".
+  const hondaIdPattern = /^\d{6}$/;
+
+  currentContainer.querySelectorAll('input[id^="hondaId"]').forEach(input => {
+    if (input.disabled) return;
+    const value = input.value.trim();
+    if (!value) return; // kosong sudah ditangani validasi required di atas
+
+    const isValidHondaId = value === '-' || hondaIdPattern.test(value);
+
+    if (!isValidHondaId) {
+      isValid = false;
+      input.style.borderColor = '#dc3545';
+      input.addEventListener('input', () => {
+        input.style.borderColor = '';
+      }, { once: true });
+
+      if (!invalidFieldLabel) {
+        const label = document.querySelector(`label[for="${input.id}"]`);
+        invalidFieldLabel = label ? label.textContent.trim() : input.name;
+        invalidFieldMessage = `Format "${invalidFieldLabel}" tidak valid. Harus berupa angka 6 digit (contoh: 123456), atau isi "-" jika tidak ada.`;
+      }
+    }
+  });
+
+  if (invalidFieldMessage) {
+    showToast(invalidFieldMessage, 'error');
+  }
+
   // Section 2 Special Validation: Check if Photo PIC CRM is uploaded
   if (currentStep === 2) {
     const photoUploader = document.getElementById('photoDropzone');
@@ -677,7 +734,7 @@ function validateCurrentStep() {
     }
   }
 
-  if (!isValid) {
+  if (!isValid && !invalidFieldMessage) {
     showToast('Harap lengkapi semua kolom wajib di halaman ini.', 'error');
   }
 
