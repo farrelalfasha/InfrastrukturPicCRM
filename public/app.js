@@ -491,6 +491,7 @@ function prefillFormData(data) {
 
   // Section 1
   document.getElementById('noHpDealer').value = data.noHpDealer || '';
+  document.getElementById('emailDealer').value = data.emailDealer || '';
   document.getElementById('namaKacab').value = data.namaKacab || '';
   document.getElementById('hondaIdKacab').value = data.hondaIdKacab || '';
   document.getElementById('noHpKacab').value = data.noHpKacab || '';
@@ -992,6 +993,8 @@ function showDealerDetail(code) {
             <div class="detail-item" style="grid-column: 1 / -1; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; margin-bottom: 0.4rem;">
               <div class="detail-label">No HP Dealer</div>
               <div class="detail-val" style="font-weight: 600; font-size: 0.95rem;">${submission.noHpDealer || '-'}</div>
+              <div class="detail-label" style="margin-top: 0.6rem;">Email Dealer</div>
+              <div class="detail-val" style="font-weight: 600; font-size: 0.95rem;">${submission.emailDealer || '-'}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Kepala Cabang</div>
@@ -1225,6 +1228,7 @@ function exportToExcel() {
         'Nama Dealer': dealerInfo.name,
         // Section 1
         'No HP Dealer': submission.noHpDealer || '',
+        'Email Dealer': submission.emailDealer || '',
         'Nama Kepala Cabang': submission.namaKacab || '',
         'Honda ID Kacab': submission.hondaIdKacab || '',
         'No HP Kacab': submission.noHpKacab || '',
@@ -1281,6 +1285,7 @@ function exportToExcel() {
         'Kode Dealer': code,
         'Nama Dealer': dealerInfo.name,
         // Fill remaining with blanks
+        'No HP Dealer': '', 'Email Dealer': '',
         'Nama Kepala Cabang': '', 'Honda ID Kacab': '', 'No HP Kacab': '', 'Email Kacab': '',
         'Nama Kepala Bengkel': '', 'Honda ID Kabeng': '', 'No HP Kabeng': '', 'Email Kabeng': '',
         'Nama PIC CRM': '', 'Honda ID PIC CRM': '', 'No HP PIC CRM': '', 'Email PIC CRM': '',
